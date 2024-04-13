@@ -21,7 +21,7 @@ void yieldtest(void) {
   yield();
   printf("parent yield finished\n");
   for (int i = 0; i < 3; i++) {
-    wait(0, 0);
+    wait(0);
   }
 }
 
