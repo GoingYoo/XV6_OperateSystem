@@ -65,4 +65,4 @@
 //   TRAPFRAME (p->trapframe, used by the trampoline)
 //   TRAMPOLINE (the same page as in the kernel)
 #define TRAPFRAME (TRAMPOLINE - PGSIZE)
-#define USYSCALL (TRAPFRAME - 0) //MODIFY HERE for LAB 4
+#define USYSCALL 0 //MODIFY HERE for LAB 4
