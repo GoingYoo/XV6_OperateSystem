@@ -335,6 +335,9 @@ sys_open(void)
     }
   }
 
+  // There is no need to deal with symbolic links to directories.
+  // YOUR CODE HERE
+
   if(ip->type == T_DEVICE && (ip->major < 0 || ip->major >= NDEV)){
     iunlockput(ip);
     end_op();

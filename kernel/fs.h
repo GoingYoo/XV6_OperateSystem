@@ -24,6 +24,19 @@ struct superblock {
 
 #define FSMAGIC 0x10203040
 
+// For Lab 5
+// +-----+
+// |     | <- DIRECT
+// +-----+
+// | ... | <- DIRECT
+// +-----+
+// |     | <- DIRECT
+// +-----+
+// |     | <- INDIRECT
+// +-----+
+// |     | <- DBL_INDIRECT
+// +-----+
+
 #define NDIRECT 12
 #define NINDIRECT (BSIZE / sizeof(uint))
 #define MAXFILE (NDIRECT + NINDIRECT)
