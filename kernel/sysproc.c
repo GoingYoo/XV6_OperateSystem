@@ -89,3 +89,24 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+//  The sys_trace system call is used to enable tracing of system calls
+//  based on a provided mask. The mask specifies which system calls should
+//  be traced. Each bit in the mask corresponds to a specific system call
+//  number. For example, to trace the fork system call, the mask should
+//  include the bit corresponding to SYS_fork.
+
+//  Arguments:
+//     int mask: The tracing mask indicating which system calls to trace.
+//               Each bit corresponds to a specific system call number.
+uint64
+sys_trace(void)
+{
+  int mask;
+  
+  //获取追踪的mask
+  argint(0, &mask);
+  //将mask保存在本进程的proc中
+  myproc()->trace_mask = mask;
+  return 0;
+}

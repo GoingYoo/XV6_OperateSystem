@@ -312,6 +312,9 @@ fork(void)
 
   safestrcpy(np->name, p->name, sizeof(p->name));
 
+  // Copy trace mask from parent to child.
+  np->trace_mask = p->trace_mask;
+
   pid = np->pid;
 
   release(&np->lock);
@@ -682,4 +685,17 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+// This function prints the user-mode program counter (PC) value and then yields the CPU
+// allowing another process to be scheduled.
+int
+sys_yield(void)
+{
+  // 打印用户态的 pc 值
+  printf("start to yield, user pc %p\n", myproc()->trapframe->epc);
+
+  // 让出 CPU，调度到其他进程
+  yield();
+  return 0;
 }

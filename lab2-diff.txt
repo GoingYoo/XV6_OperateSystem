@@ -1,0 +1,184 @@
+diff --git a/Makefile b/Makefile
+index 4cc2011..8e4f945 100644
+--- a/Makefile
++++ b/Makefile
+@@ -145,6 +145,8 @@ UPROGS=\
+ 	$U/_sleep\
+ 	$U/_pingpong\
+ 	$U/_primes\
++	$U/_tracetest\
++	$U/_yieldtest\
+ 
+ ph: notxv6/ph.c
+ 	gcc -o ph -g -O2 $(XCFLAGS) notxv6/ph.c -pthread
+diff --git a/kernel/proc.c b/kernel/proc.c
+index 7a5e450..d3520f9 100644
+--- a/kernel/proc.c
++++ b/kernel/proc.c
+@@ -312,6 +312,9 @@ fork(void)
+ 
+   safestrcpy(np->name, p->name, sizeof(p->name));
+ 
++  // Copy trace mask from parent to child.
++  np->trace_mask = p->trace_mask;
++
+   pid = np->pid;
+ 
+   release(&np->lock);
+@@ -683,3 +686,16 @@ procdump(void)
+     printf("\n");
+   }
+ }
++
++// This function prints the user-mode program counter (PC) value and then yields the CPU
++// allowing another process to be scheduled.
++int
++sys_yield(void)
++{
++  // 打印用户态的 pc 值
++  printf("start to yield, user pc %p\n", myproc()->trapframe->epc);
++
++  // 让出 CPU，调度到其他进程
++  yield();
++  return 0;
++}
+\ No newline at end of file
+diff --git a/kernel/proc.h b/kernel/proc.h
+index de86c05..c130130 100644
+--- a/kernel/proc.h
++++ b/kernel/proc.h
+@@ -96,6 +96,7 @@ struct proc {
+   int killed;                  // If non-zero, have been killed
+   int xstate;                  // Exit status to be returned to parent's wait
+   int pid;                     // Process ID
++  int trace_mask;              // Trace mask
+ 
+   // wait_lock must be held when using this:
+   struct proc *parent;         // Parent process
+diff --git a/kernel/syscall.c b/kernel/syscall.c
+index ed65409..4305d49 100644
+--- a/kernel/syscall.c
++++ b/kernel/syscall.c
+@@ -101,6 +101,8 @@ extern uint64 sys_unlink(void);
+ extern uint64 sys_link(void);
+ extern uint64 sys_mkdir(void);
+ extern uint64 sys_close(void);
++extern uint64 sys_trace(void);
++extern uint64 sys_yield(void);
+ 
+ // An array mapping syscall numbers from syscall.h
+ // to the function that handles the system call.
+@@ -126,6 +128,34 @@ static uint64 (*syscalls[])(void) = {
+ [SYS_link]    sys_link,
+ [SYS_mkdir]   sys_mkdir,
+ [SYS_close]   sys_close,
++[SYS_trace]   sys_trace,
++[SYS_yield]   sys_yield
++};
++
++static const char *syscallnames[] = {
++    [SYS_fork] = "fork",
++    [SYS_exit] = "exit",
++    [SYS_wait] = "wait",
++    [SYS_pipe] = "pipe",
++    [SYS_read] = "read",
++    [SYS_kill] = "kill",
++    [SYS_exec] = "exec",
++    [SYS_fstat] = "fstat",
++    [SYS_chdir] = "chdir",
++    [SYS_dup] = "dup",
++    [SYS_getpid] = "getpid",
++    [SYS_sbrk] = "sbrk",
++    [SYS_sleep] = "sleep",
++    [SYS_uptime] = "uptime",
++    [SYS_open] = "open",
++    [SYS_write] = "write",
++    [SYS_mknod] = "mknod",
++    [SYS_unlink] = "unlink",
++    [SYS_link] = "link",
++    [SYS_mkdir] = "mkdir",
++    [SYS_close] = "close",
++    [SYS_trace] = "trace",
++    [SYS_yield] = "yield",
+ };
+ 
+ void
+@@ -137,8 +167,12 @@ syscall(void)
+   num = p->trapframe->a7;
+   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
+     // Use num to lookup the system call function for num, call it,
+-    // and store its return value in p->trapframe->a0
+-    p->trapframe->a0 = syscalls[num]();
++    // and store its return value in p->trapframe->a0 返回值存储在a0
++    p->trapframe->a0 = syscalls[num](); 
++    //位操作判断mask是否覆盖了当前调用号，即检查是否需要跟踪该系统调用
++    if (p->trace_mask & (1 << num))
++      printf("%d: syscall %s -> %d\n", 
++            p->pid, syscallnames[num-1], p->trapframe->a0);
+   } else {
+     printf("%d %s: unknown sys call %d\n",
+             p->pid, p->name, num);
+diff --git a/kernel/syscall.h b/kernel/syscall.h
+index bc5f356..738dbaf 100644
+--- a/kernel/syscall.h
++++ b/kernel/syscall.h
+@@ -20,3 +20,5 @@
+ #define SYS_link   19
+ #define SYS_mkdir  20
+ #define SYS_close  21
++#define SYS_trace  22
++#define SYS_yield  23
+\ No newline at end of file
+diff --git a/kernel/sysproc.c b/kernel/sysproc.c
+index 1de184e..c4a3275 100644
+--- a/kernel/sysproc.c
++++ b/kernel/sysproc.c
+@@ -89,3 +89,24 @@ sys_uptime(void)
+   release(&tickslock);
+   return xticks;
+ }
++
++//  The sys_trace system call is used to enable tracing of system calls
++//  based on a provided mask. The mask specifies which system calls should
++//  be traced. Each bit in the mask corresponds to a specific system call
++//  number. For example, to trace the fork system call, the mask should
++//  include the bit corresponding to SYS_fork.
++
++//  Arguments:
++//     int mask: The tracing mask indicating which system calls to trace.
++//               Each bit corresponds to a specific system call number.
++uint64
++sys_trace(void)
++{
++  int mask;
++  
++  //获取追踪的mask
++  argint(0, &mask);
++  //将mask保存在本进程的proc中
++  myproc()->trace_mask = mask;
++  return 0;
++}
+diff --git a/user/user.h b/user/user.h
+index a79ad0a..e817780 100644
+--- a/user/user.h
++++ b/user/user.h
+@@ -22,6 +22,8 @@ int getpid(void);
+ char* sbrk(int);
+ int sleep(int);
+ int uptime(void);
++int trace(int);
++int yield(void);
+ 
+ // ulib.c
+ int stat(const char*, struct stat*);
+diff --git a/user/usys.pl b/user/usys.pl
+index 01e426e..0c8d91e 100755
+--- a/user/usys.pl
++++ b/user/usys.pl
+@@ -36,3 +36,5 @@ entry("getpid");
+ entry("sbrk");
+ entry("sleep");
+ entry("uptime");
++entry("trace");
++entry("yield");
+\ No newline at end of file

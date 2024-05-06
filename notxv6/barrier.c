@@ -30,6 +30,19 @@ barrier()
   // Block until all threads have called barrier() and
   // then increment bstate.round.
   //
+  pthread_mutex_lock(&bstate.barrier_mutex);
+  bstate.nthread++;
+  if (bstate.nthread == nthread) {
+    bstate.round++;
+    bstate.nthread = 0;  // 重置线程计数为下一轮
+    pthread_cond_broadcast(&bstate.barrier_cond);  // 唤醒所有等待的线程
+  } else {
+    int local_round = bstate.round;  // 记录当前的round值
+    while (local_round == bstate.round) {
+      pthread_cond_wait(&bstate.barrier_cond, &bstate.barrier_mutex);
+    }
+  }
+  pthread_mutex_unlock(&bstate.barrier_mutex);
   
 }
 
