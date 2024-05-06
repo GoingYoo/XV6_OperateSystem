@@ -232,6 +232,7 @@ uchar initcode[] = {
 void
 userinit(void)
 {
+  printf("[162120307] enter userinit\n");
   struct proc *p;
 
   p = allocproc();
@@ -239,6 +240,7 @@ userinit(void)
   
   // allocate one user page and copy initcode's instructions
   // and data into it.
+  printf("[162120307] copy initcode to first user process\n");
   uvmfirst(p->pagetable, initcode, sizeof(initcode));
   p->sz = PGSIZE;
 

@@ -1,0 +1,75 @@
+diff --git a/Makefile b/Makefile
+index b54389d..4cc2011 100644
+--- a/Makefile
++++ b/Makefile
+@@ -142,6 +142,9 @@ UPROGS=\
+ 	$U/_grind\
+ 	$U/_wc\
+ 	$U/_zombie\
++	$U/_sleep\
++	$U/_pingpong\
++	$U/_primes\
+ 
+ ph: notxv6/ph.c
+ 	gcc -o ph -g -O2 $(XCFLAGS) notxv6/ph.c -pthread
+diff --git a/kernel/main.c b/kernel/main.c
+index f0d3171..4f8a889 100644
+--- a/kernel/main.c
++++ b/kernel/main.c
+@@ -11,6 +11,7 @@ void
+ main()
+ {
+   if(cpuid() == 0){
++    printf("[162120307] enter main, init kernel\n");
+     consoleinit();
+     printfinit();
+     printf("\n");
+diff --git a/kernel/proc.c b/kernel/proc.c
+index 959b778..7a5e450 100644
+--- a/kernel/proc.c
++++ b/kernel/proc.c
+@@ -232,6 +232,7 @@ uchar initcode[] = {
+ void
+ userinit(void)
+ {
++  printf("[162120307] enter userinit\n");
+   struct proc *p;
+ 
+   p = allocproc();
+@@ -239,6 +240,7 @@ userinit(void)
+   
+   // allocate one user page and copy initcode's instructions
+   // and data into it.
++  printf("[162120307] copy initcode to first user process\n");
+   uvmfirst(p->pagetable, initcode, sizeof(initcode));
+   p->sz = PGSIZE;
+ 
+diff --git a/kernel/start.c b/kernel/start.c
+index e16f18a..8719d7e 100644
+--- a/kernel/start.c
++++ b/kernel/start.c
+@@ -20,6 +20,12 @@ extern void timervec();
+ void
+ start()
+ {
++  int print_id = r_mhartid();
++  if (print_id == 0) {
++    // Print only for the first hart
++    printf("[162120307] in start, init driver, interrupts and change mode\n");
++  }
++
+   // set M Previous Privilege mode to Supervisor, for mret.
+   unsigned long x = r_mstatus();
+   x &= ~MSTATUS_MPP_MASK;
+diff --git a/user/init.c b/user/init.c
+index e0a5689..d301431 100644
+--- a/user/init.c
++++ b/user/init.c
+@@ -25,6 +25,7 @@ main(void)
+ 
+   for(;;){
+     printf("init: starting sh\n");
++    printf("[162120307] start sh through execve\n");
+     pid = fork();
+     if(pid < 0){
+       printf("init: fork failed\n");

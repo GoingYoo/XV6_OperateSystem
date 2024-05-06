@@ -142,6 +142,9 @@ UPROGS=\
 	$U/_grind\
 	$U/_wc\
 	$U/_zombie\
+	$U/_sleep\
+	$U/_pingpong\
+	$U/_primes\
 
 ph: notxv6/ph.c
 	gcc -o ph -g -O2 $(XCFLAGS) notxv6/ph.c -pthread

@@ -11,6 +11,7 @@ void
 main()
 {
   if(cpuid() == 0){
+    printf("[162120307] enter main, init kernel\n");
     consoleinit();
     printfinit();
     printf("\n");

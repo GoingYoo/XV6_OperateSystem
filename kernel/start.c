@@ -20,6 +20,12 @@ extern void timervec();
 void
 start()
 {
+  int print_id = r_mhartid();
+  if (print_id == 0) {
+    // Print only for the first hart
+    printf("[162120307] in start, init driver, interrupts and change mode\n");
+  }
+
   // set M Previous Privilege mode to Supervisor, for mret.
   unsigned long x = r_mstatus();
   x &= ~MSTATUS_MPP_MASK;
