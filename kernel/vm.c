@@ -437,3 +437,38 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
     return -1;
   }
 }
+
+void vmprint_level(pagetable_t pagetable, int level, uint64 base_va) {
+  for (int i = 0; i < 512; i++) {
+    pte_t pte = pagetable[i];
+    if (pte & PTE_V) { // 检查有效位
+      uint64 pa = PTE2PA(pte);  // 获取子页表或物理页地址
+      uint64 va = base_va | ((uint64)i << (PGSHIFT + 9 * (2 - level))); // 正确计算虚拟地址
+      
+      // 打印树的深度
+      for(int j = 0; j < level; j++) {
+        printf("||  ");
+      }
+
+      char flags[5]; // 创建一个字符数组来存储权限标志
+      flags[0] = (pte & PTE_R) ? 'r' : '-';
+      flags[1] = (pte & PTE_W) ? 'w' : '-';
+      flags[2] = (pte & PTE_X) ? 'x' : '-';
+      flags[3] = (pte & PTE_U) ? 'u' : '-';
+      flags[4] = '\0'; // 确保字符串正确终结
+
+      if((pte & (PTE_R|PTE_W|PTE_X))) { // 叶子节点
+        printf("||idx: %d: va: %p -> pa: %p, flags: %s\n",
+            i, va, pa, flags);
+      } else { // 非叶子节点
+        printf("||idx: %d: pa: %p, flags: ----\n", i, pa);
+        vmprint_level((pagetable_t)pa, level + 1, va); // 递归打印下一级页表
+      }
+    }
+  }
+}
+
+void vmprint(pagetable_t pagetable) {
+  printf("page table %p\n", pagetable);
+  vmprint_level(pagetable, 0, 0);
+}
